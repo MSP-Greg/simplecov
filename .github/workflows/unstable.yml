@@ -1,50 +1,43 @@
 name: unstable
 
-on:
-  schedule:
-    - cron: '0 0 * * *'
+#on:
+#  schedule:
+#    - cron: '0 0 * * *'
+
+on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-16.04
+    # if: github.repository == 'simplecov-ruby/simplecov'
+    runs-on: ubuntu-18.04
 
     strategy:
+      fail-fast: false
       matrix:
-        ruby: [ruby-head, jruby-head]
+        ruby: [ head, jruby-head ]
 
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up RVM
-        run: curl -sSL https://get.rvm.io | bash
-
-      - name: Set up Ruby
-        run: |
-          source $HOME/.rvm/scripts/rvm
-          rvm install ${{ matrix.ruby }} --binary --autolibs=disable
-          rvm --default use ${{ matrix.ruby }}
-
-      - name: Install java
-        run: sudo apt-get -y install openjdk-8-jre-headless
-        if: matrix.ruby == 'jruby-head'
+      - name: Setup ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler: latest
 
       - name: Get sqlite for Rails test projects
         run: sudo apt-get install libsqlite3-dev
 
       - name: Install dependencies
         run: |
-          source $HOME/.rvm/scripts/rvm
           bundle config set --local without benchmark
+          bundle lock --update
           bundle install --jobs=3
 
       - name: Run tests (MRI)
-        run: |
-          source $HOME/.rvm/scripts/rvm
-          bundle exec rake
-        if: matrix.ruby == 'ruby-head'
+        run: bundle exec rake
+        if: "!startsWith(matrix.ruby, 'jruby')"
 
       - name: Run tests (JRuby)
-        run: |
-          source $HOME/.rvm/scripts/rvm
-          JRUBY_OPTS=--debug bundle exec rake
-        if: matrix.ruby == 'jruby-head'
+        run: JRUBY_OPTS=--debug bundle exec rake
+        if: startsWith(matrix.ruby, 'jruby')

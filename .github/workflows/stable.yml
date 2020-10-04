@@ -4,12 +4,15 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        ruby: [2.5.8, 2.6.6, 2.7.1, jruby-9.2.11.1]
-
+        os: [ ubuntu-18.04 ]
+        ruby: [ 2.5.8, 2.6.6, 2.7.1, jruby-9.2.12.0 ]
+        include:
+          - { os: ubuntu-20.04, ruby: 2.7.1 }
     steps:
       - uses: actions/checkout@v2
 
@@ -17,15 +20,14 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
+          bundler: latest
 
       - name: Get sqlite for Rails test projects
         run: sudo apt-get install libsqlite3-dev
 
-      - name: Install bundler
-        run: gem i bundler
-
       - name: Install dependencies
         run: |
+          ruby -e 'puts RUBY_DESCRIPTION'
           bundle config set --local without benchmark
           bundle install --jobs=3
 
